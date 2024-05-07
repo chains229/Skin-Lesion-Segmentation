@@ -15,9 +15,9 @@ class setting_config:
     datasets = 'isic18' 
 
     if datasets == 'isic18':
-        data_path = './data/isic2018/'
+        data_path = '/kaggle/input/data-isic1718/isic2018'
     elif datasets == 'isic17':
-        data_path = './data/isic2017/'
+        data_path = '/kaggle/input/data-isic1718/isic2017'
     else:
         raise Exception('datasets in not right!')
 
