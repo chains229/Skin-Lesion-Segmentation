@@ -325,7 +325,7 @@ class HRNet(nn.Module):
         self.stage4, pre_stage_channels = self._make_stage(
             layer_config, num_channels, multi_scale_output=True)
         
-        last_inp_channels = np.int(np.sum(pre_stage_channels))
+        last_inp_channels = np.int64(np.sum(pre_stage_channels))
 
         self.last_layer = nn.Sequential(
             nn.Conv2d(
