@@ -91,4 +91,4 @@ class UNet(nn.Module):
 
     conv0_out = self.conv0(conv1m_out)
 
-    return conv0_out
+    return torch.sigmoid(conv0_out)
