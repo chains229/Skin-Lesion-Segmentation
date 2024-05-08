@@ -18,7 +18,6 @@ import torch.nn.functional as F
 
 # from .sync_bn.inplace_abn.bn import InPlaceABNSync
 
-from torchsummary import summary
 
 BN_MOMENTUM = 0.01
 logger = logging.getLogger(__name__)
