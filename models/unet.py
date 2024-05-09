@@ -1,94 +1,120 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as functional
+import torch.nn.functional as F
+import torch
 
-def add_conv_stage(dim_in, dim_out, kernel_size=3, stride=1, padding=1, bias=True, useBN=False):
-  if useBN:
-    return nn.Sequential(
-      nn.Conv2d(dim_in, dim_out, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias),
-      nn.BatchNorm2d(dim_out),
-      nn.LeakyReLU(0.1),
-      nn.Conv2d(dim_out, dim_out, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias),
-      nn.BatchNorm2d(dim_out),
-      nn.LeakyReLU(0.1)
-    )
-  else:
-    return nn.Sequential(
-      nn.Conv2d(dim_in, dim_out, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias),
-      nn.ReLU(),
-      nn.Conv2d(dim_out, dim_out, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias),
-      nn.ReLU()
-    )
 
-def add_merge_stage(ch_coarse, ch_fine, in_coarse, in_fine, upsample):
-  conv = nn.ConvTranspose2d(ch_coarse, ch_fine, 4, 2, 1, bias=False)
-  torch.cat(conv, in_fine)
+class conv_block(nn.Module):
+    """
+    Convolution Block 
+    """
+    def __init__(self, in_ch, out_ch):
+        super(conv_block, self).__init__()
+        
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_ch, out_ch, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True))
 
-  return nn.Sequential(
-    nn.ConvTranspose2d(ch_coarse, ch_fine, 4, 2, 1, bias=False)
-  )
-  upsample(in_coarse)
+    def forward(self, x):
 
-def upsample(ch_coarse, ch_fine):
-  return nn.Sequential(
-    nn.ConvTranspose2d(ch_coarse, ch_fine, 4, 2, 1, bias=False),
-    nn.ReLU()
-  )
+        x = self.conv(x)
+        return x
+
+
+class up_conv(nn.Module):
+    """
+    Up Convolution Block
+    """
+    def __init__(self, in_ch, out_ch):
+        super(up_conv, self).__init__()
+        self.up = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=1, padding=1, bias=True),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        x = self.up(x)
+        return x
+
 
 class UNet(nn.Module):
-  def __init__(self, useBN=False):
-    super(UNet, self).__init__()
+    """
+    UNet - Basic Implementation
+    Paper : https://arxiv.org/abs/1505.04597
+    """
+    def __init__(self, in_ch=3, out_ch=1):
+        super(UNet, self).__init__()
 
-    self.conv1   = add_conv_stage(1, 32, useBN=useBN)
-    self.conv2   = add_conv_stage(32, 64, useBN=useBN)
-    self.conv3   = add_conv_stage(64, 128, useBN=useBN)
-    self.conv4   = add_conv_stage(128, 256, useBN=useBN)
-    self.conv5   = add_conv_stage(256, 512, useBN=useBN)
+        n1 = 64
+        filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]
+        
+        self.Maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.Maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.Maxpool3 = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.Maxpool4 = nn.MaxPool2d(kernel_size=2, stride=2)
 
-    self.conv4m = add_conv_stage(512, 256, useBN=useBN)
-    self.conv3m = add_conv_stage(256, 128, useBN=useBN)
-    self.conv2m = add_conv_stage(128,  64, useBN=useBN)
-    self.conv1m = add_conv_stage( 64,  32, useBN=useBN)
+        self.Conv1 = conv_block(in_ch, filters[0])
+        self.Conv2 = conv_block(filters[0], filters[1])
+        self.Conv3 = conv_block(filters[1], filters[2])
+        self.Conv4 = conv_block(filters[2], filters[3])
+        self.Conv5 = conv_block(filters[3], filters[4])
 
-    self.conv0  = nn.Sequential(
-        nn.Conv2d(32, 1, 3, 1, 1),
-        nn.Sigmoid()
-    )
+        self.Up5 = up_conv(filters[4], filters[3])
+        self.Up_conv5 = conv_block(filters[4], filters[3])
 
-    self.max_pool = nn.MaxPool2d(2)
+        self.Up4 = up_conv(filters[3], filters[2])
+        self.Up_conv4 = conv_block(filters[3], filters[2])
 
-    self.upsample54 = upsample(512, 256)
-    self.upsample43 = upsample(256, 128)
-    self.upsample32 = upsample(128,  64)
-    self.upsample21 = upsample(64 ,  32)
+        self.Up3 = up_conv(filters[2], filters[1])
+        self.Up_conv3 = conv_block(filters[2], filters[1])
 
-    ## weight initialization
-    for m in self.modules():
-      if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-        if m.bias is not None:
-          m.bias.data.zero_()
+        self.Up2 = up_conv(filters[1], filters[0])
+        self.Up_conv2 = conv_block(filters[1], filters[0])
 
+        self.Conv = nn.Conv2d(filters[0], out_ch, kernel_size=1, stride=1, padding=0)
 
-  def forward(self, x):
-    conv1_out = self.conv1(x)
-    #return self.upsample21(conv1_out)
-    conv2_out = self.conv2(self.max_pool(conv1_out))
-    conv3_out = self.conv3(self.max_pool(conv2_out))
-    conv4_out = self.conv4(self.max_pool(conv3_out))
-    conv5_out = self.conv5(self.max_pool(conv4_out))
+       # self.active = torch.nn.Sigmoid()
 
-    conv5m_out = torch.cat((self.upsample54(conv5_out), conv4_out), 1)
-    conv4m_out = self.conv4m(conv5m_out)
+    def forward(self, x):
 
-    conv4m_out_ = torch.cat((self.upsample43(conv4m_out), conv3_out), 1)
-    conv3m_out = self.conv3m(conv4m_out_)
+        e1 = self.Conv1(x)
 
-    conv3m_out_ = torch.cat((self.upsample32(conv3m_out), conv2_out), 1)
-    conv2m_out = self.conv2m(conv3m_out_)
+        e2 = self.Maxpool1(e1)
+        e2 = self.Conv2(e2)
 
-    conv2m_out_ = torch.cat((self.upsample21(conv2m_out), conv1_out), 1)
-    conv1m_out = self.conv1m(conv2m_out_)
+        e3 = self.Maxpool2(e2)
+        e3 = self.Conv3(e3)
 
-    conv0_out = self.conv0(conv1m_out)
+        e4 = self.Maxpool3(e3)
+        e4 = self.Conv4(e4)
 
-    return torch.sigmoid(conv0_out)
+        e5 = self.Maxpool4(e4)
+        e5 = self.Conv5(e5)
+
+        d5 = self.Up5(e5)
+        d5 = torch.cat((e4, d5), dim=1)
+
+        d5 = self.Up_conv5(d5)
+
+        d4 = self.Up4(d5)
+        d4 = torch.cat((e3, d4), dim=1)
+        d4 = self.Up_conv4(d4)
+
+        d3 = self.Up3(d4)
+        d3 = torch.cat((e2, d3), dim=1)
+        d3 = self.Up_conv3(d3)
+
+        d2 = self.Up2(d3)
+        d2 = torch.cat((e1, d2), dim=1)
+        d2 = self.Up_conv2(d2)
+
+        out = self.Conv(d2)
+
+        #d1 = self.active(out)
+
+        return torch.sigmoid(out)
