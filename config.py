@@ -12,7 +12,7 @@ class setting_config:
 
     test_weights = ''
 
-    datasets = 'isic18' 
+    datasets = 'isic17' 
 
     if datasets == 'isic18':
         data_path = '/kaggle/input/data-isic1718/isic2018/'
@@ -34,8 +34,8 @@ class setting_config:
     world_size = None
     rank = None
     amp = False
-    batch_size = 8
-    epochs = 300
+    batch_size = 16
+    epochs = 50
 
     work_dir = 'results/' + network + '_' + datasets + '_' + datetime.now().strftime('%A_%d_%B_%Y_%Hh_%Mm_%Ss') + '/'
 
