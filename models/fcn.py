@@ -12,7 +12,7 @@ class FCN(nn.Module):
         super().__init__()
         
         self.base_model = models.resnet18(pretrained=False)
-        
+        base_model = models.resnet18(pretrained=False)
         layers = list(base_model.children())
         self.layer1 = nn.Sequential(*layers[:5]) # size=(N, 64, x.H/2, x.W/2)
         self.upsample1 = nn.Upsample(scale_factor=4, mode='bilinear')
