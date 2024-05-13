@@ -17,6 +17,7 @@ warnings.filterwarnings("ignore")
 from models.segnet import SegNet
 from models.unet import UNet
 from models.fcn import FCN
+from models.malunet import MALUNet
 
 def main(config):
 
@@ -72,8 +73,10 @@ def main(config):
         model = UNet()
     elif model_name == 'segnet':
         model = SegNet()
-    elif model_name == 'hrnet':
+    elif model_name == 'fcn':
         model = FCN()
+    elif model_name == 'malunet':
+        model = MALUNet()
     
     model = torch.nn.DataParallel(model.cuda(), device_ids=gpu_ids, output_device=gpu_ids[0])
 
