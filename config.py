@@ -7,7 +7,7 @@ class setting_config:
     """
     the config of training setting.
     """
-    network = 'unet' 
+    network = 'malunet' 
    
 
     test_weights = ''
