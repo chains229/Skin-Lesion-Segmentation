@@ -19,6 +19,7 @@ from models.unet import UNet
 from models.fcn import FCN
 from models.malunet import MALUNet
 from models.unext import UNext
+from models.att_unet import AttU_Net
 
 def main(config):
 
@@ -80,6 +81,8 @@ def main(config):
         model = MALUNet()
     elif model_name == 'unext':
         model = UNext()
+    elif model_name == 'att_unet':
+        model = AttU_Net()
     
     model = torch.nn.DataParallel(model.cuda(), device_ids=gpu_ids, output_device=gpu_ids[0])
 
