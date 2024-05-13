@@ -77,7 +77,7 @@ class setting_config:
         weight_decay = 0.0001 # default: 0 – weight decay (L2 penalty) 
         amsgrad = False # default: False – whether to use the AMSGrad variant of this algorithm from the paper On the Convergence of Adam and Beyond
     elif opt == 'AdamW':
-        lr = 0.05 # default: 1e-3 – learning rate
+        lr = 0.001 # default: 1e-3 – learning rate
         betas = (0.9, 0.999) # default: (0.9, 0.999) – coefficients used for computing running averages of gradient and its square
         eps = 1e-8 # default: 1e-8 – term added to the denominator to improve numerical stability
         weight_decay = 1e-2 # default: 1e-2 – weight decay coefficient
